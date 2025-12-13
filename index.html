@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USDT Wallet Balance Checker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💎 USDT Wallet Balance Checker</h1>
+            <p>Check USDT balances for BEP20 (BSC) and TRC20 (Tron) wallets in real-time</p>
+        </header>
+
+        <div class="input-section">
+            <div class="input-group">
+                <h2>Add Single Address</h2>
+                <div class="single-address">
+                    <input type="text" id="walletAddress" placeholder="Enter wallet address (BEP20 or TRC20)" autocomplete="off">
+                    <button onclick="addSingleAddress()">➕ Add</button>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <h2>Bulk Upload</h2>
+                <div class="bulk-upload">
+                    <input type="file" id="fileInput" accept=".txt,.csv">
+                    <label for="fileInput" class="file-label">📁 Choose File (.txt or .csv)</label>
+                    <button onclick="uploadBulkAddresses()">📤 Upload & Add</button>
+                    <small>Upload a file with one wallet address per line</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button onclick="checkAllBalances()" class="btn-primary">🔍 Check All Balances</button>
+            <button onclick="clearAll()" class="btn-danger">🗑️ Clear All</button>
+            <button onclick="exportAddresses()" class="btn-secondary">💾 Export Addresses</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <span class="stat-label">Total Wallets</span>
+                <span class="stat-value" id="totalWallets">0</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Total BEP20 USDT</span>
+                <span class="stat-value" id="totalBEP20">0.00</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Total TRC20 USDT</span>
+                <span class="stat-value" id="totalTRC20">0.00</span>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table id="walletTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Wallet Address</th>
+                        <th>BEP20 USDT</th>
+                        <th>TRC20 USDT</th>
+                        <th>Total USDT</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="walletTableBody">
+                    <!-- Wallets will be added here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Checking balances...</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
