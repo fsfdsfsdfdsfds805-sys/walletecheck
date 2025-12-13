@@ -164,18 +164,18 @@
     <script src="script.js"></script>
     <script>
         // Server API URL - auto-detect or use localhost
-                // Frontend: https://walletecheck.vercel.app/
-                // Backend: https://walletecheckserver-production.up.railway.app
-                const SERVER_API_URL = window.location.origin.includes('localhost')
-                    ? 'http://localhost:3000'
-                    : window.location.origin.includes('vercel.app') || window.location.origin.includes('walletecheck')
-                    ? 'https://walletecheckserver-production.up.railway.app'
-                    : window.location.origin.includes('railway')
-                    ? window.location.origin
-                    : window.location.origin;
+        // Frontend: https://walletecheck.vercel.app/
+        // Backend: https://walletecheckserver-production.up.railway.app
+        const SERVER_API_URL = window.location.origin.includes('localhost')
+            ? 'http://localhost:3000'
+            : window.location.origin.includes('vercel.app') || window.location.origin.includes('walletecheck')
+            ? 'https://walletecheckserver-production.up.railway.app'
+            : window.location.origin.includes('railway')
+            ? window.location.origin
+            : window.location.origin;
 
-        // Tab switching
-        function switchTab(tab, buttonElement) {
+        // Tab switching - must be in global scope for onclick handlers
+        window.switchTab = function(tab, buttonElement) {
             // Hide all tabs
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -190,11 +190,11 @@
             
             // Load data for monitor tab
             if (tab === 'monitor') {
-                checkServerStatus();
-                loadMonitoredWallets();
-                loadRecentTransactions();
+                if (typeof checkServerStatus === 'function') checkServerStatus();
+                if (typeof loadMonitoredWallets === 'function') loadMonitoredWallets();
+                if (typeof loadRecentTransactions === 'function') loadRecentTransactions();
             }
-        }
+        };
 
         // Server Status
         async function checkServerStatus() {
