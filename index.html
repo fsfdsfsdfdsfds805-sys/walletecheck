@@ -163,16 +163,20 @@
 
     <script src="script.js"></script>
     <script>
-        // Server API URL - auto-detect or use localhost
-        // Frontend: https://walletecheck.vercel.app/
-        // Backend: https://walletecheckserver-production.up.railway.app
-        const SERVER_API_URL = window.location.origin.includes('localhost')
-            ? 'http://localhost:3000'
-            : window.location.origin.includes('vercel.app') || window.location.origin.includes('walletecheck')
-            ? 'https://walletecheckserver-production.up.railway.app'
-            : window.location.origin.includes('railway')
-            ? window.location.origin
-            : window.location.origin;
+        // Helper to get API URL - uses SERVER_API_URL from script.js if available
+        function getApiUrl() {
+            if (typeof SERVER_API_URL !== 'undefined') {
+                return SERVER_API_URL;
+            }
+            // Fallback
+            return window.location.origin.includes('localhost') 
+                ? 'http://localhost:3000' 
+                : window.location.origin.includes('vercel.app') || window.location.origin.includes('walletecheck')
+                ? 'https://walletecheckserver-production.up.railway.app'
+                : window.location.origin.includes('railway')
+                ? window.location.origin
+                : window.location.origin;
+        }
 
         // Tab switching - must be in global scope for onclick handlers
         window.switchTab = function(tab, buttonElement) {
@@ -190,11 +194,17 @@
             
             // Load data for monitor tab
             if (tab === 'monitor') {
-                if (typeof checkServerStatus === 'function') checkServerStatus();
-                if (typeof loadMonitoredWallets === 'function') loadMonitoredWallets();
-                if (typeof loadRecentTransactions === 'function') loadRecentTransactions();
+                // Use setTimeout to ensure functions are defined
+                setTimeout(() => {
+                    if (typeof checkServerStatus === 'function') checkServerStatus();
+                    if (typeof loadMonitoredWallets === 'function') loadMonitoredWallets();
+                    if (typeof loadRecentTransactions === 'function') loadRecentTransactions();
+                }, 100);
             }
         };
+        
+        // Make switchTab available immediately (before DOMContentLoaded)
+        // This ensures onclick handlers can access it
 
         // Server Status
         async function checkServerStatus() {
@@ -203,7 +213,7 @@
             const statusIndicator = document.getElementById('statusIndicator');
             
             try {
-                const response = await fetch(`${SERVER_API_URL}/api/health`);
+                const response = await fetch(`${getApiUrl()}/api/health`);
                 const data = await response.json();
                 
                 statusIndicator.textContent = '🟢';
@@ -238,7 +248,7 @@
             loading.classList.remove('hidden');
 
             try {
-                const response = await fetch(`${SERVER_API_URL}/api/wallets`, {
+                const response = await fetch(`${getApiUrl()}/api/wallets`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ address, network })
@@ -264,7 +274,7 @@
         // Load monitored wallets
         async function loadMonitoredWallets() {
             try {
-                const response = await fetch(`${SERVER_API_URL}/api/wallets`);
+                const response = await fetch(`${getApiUrl()}/api/wallets`);
                 const wallets = await response.json();
 
                 const tbody = document.getElementById('monitoredTableBody');
@@ -302,7 +312,7 @@
             event.target.disabled = true;
             
             try {
-                const response = await fetch(`${SERVER_API_URL}/api/wallets/${address}/check`, {
+                const response = await fetch(`${getApiUrl()}/api/wallets/${address}/check`, {
                     method: 'POST'
                 });
 
@@ -328,7 +338,7 @@
             if (!confirm(`Remove ${address} from monitoring?`)) return;
 
             try {
-                const response = await fetch(`${SERVER_API_URL}/api/wallets/${address}`, {
+                const response = await fetch(`${getApiUrl()}/api/wallets/${address}`, {
                     method: 'DELETE'
                 });
 
@@ -347,7 +357,7 @@
         // Load recent transactions
         async function loadRecentTransactions() {
             try {
-                const response = await fetch(`${SERVER_API_URL}/api/transactions?limit=20`);
+                const response = await fetch(`${getApiUrl()}/api/transactions?limit=20`);
                 const transactions = await response.json();
 
                 const tbody = document.getElementById('transactionsTableBody');
