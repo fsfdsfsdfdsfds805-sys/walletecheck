@@ -3,81 +3,360 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>USDT Wallet Balance Checker</title>
+    <title>USDT Wallet Monitor & Balance Checker</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>💎 USDT Wallet Balance Checker</h1>
-            <p>Check USDT balances for BEP20 (BSC) and TRC20 (Tron) wallets in real-time</p>
+            <h1>💎 USDT Wallet Monitor & Balance Checker</h1>
+            <p>Check balances and monitor USDT transactions for BEP20 (BSC) and TRC20 (Tron) wallets</p>
         </header>
 
-        <div class="input-section">
-            <div class="input-group">
-                <h2>Add Single Address</h2>
-                <div class="single-address">
-                    <input type="text" id="walletAddress" placeholder="Enter wallet address (BEP20 or TRC20)" autocomplete="off">
-                    <button onclick="addSingleAddress()">➕ Add</button>
+        <!-- Tabs Navigation -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('balance', this)">💰 Balance Checker</button>
+            <button class="tab-btn" onclick="switchTab('monitor', this)">🔔 Live Monitor</button>
+        </div>
+
+        <!-- Balance Checker Tab -->
+        <div id="balanceTab" class="tab-content active">
+            <div class="input-section">
+                <div class="input-group">
+                    <h2>Add Single Address</h2>
+                    <div class="single-address">
+                        <input type="text" id="walletAddress" placeholder="Enter wallet address (BEP20 or TRC20)" autocomplete="off">
+                        <button onclick="addSingleAddress()">➕ Add & Monitor</button>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <h2>Bulk Upload</h2>
+                    <div class="bulk-upload">
+                        <input type="file" id="fileInput" accept=".txt,.csv">
+                        <label for="fileInput" class="file-label">📁 Choose File (.txt or .csv)</label>
+                        <button onclick="uploadBulkAddresses()">📤 Upload & Add to Monitor</button>
+                        <small>Upload a file with one wallet address per line</small>
+                    </div>
                 </div>
             </div>
 
-            <div class="input-group">
-                <h2>Bulk Upload</h2>
-                <div class="bulk-upload">
-                    <input type="file" id="fileInput" accept=".txt,.csv">
-                    <label for="fileInput" class="file-label">📁 Choose File (.txt or .csv)</label>
-                    <button onclick="uploadBulkAddresses()">📤 Upload & Add</button>
-                    <small>Upload a file with one wallet address per line</small>
+            <div class="actions">
+                <button onclick="checkAllBalances()" class="btn-primary">🔍 Check Now</button>
+                <button onclick="toggleAutoCheck()" class="btn-secondary" id="autoCheckBtn">⏸️ Pause Auto-Check</button>
+                <button onclick="clearAll()" class="btn-danger">🗑️ Clear All</button>
+                <button onclick="exportAddresses()" class="btn-secondary">💾 Export Addresses</button>
+            </div>
+            <div style="text-align: center; margin-top: 10px; color: #666; font-size: 14px;">
+                <span id="autoCheckStatus">🔄 Auto-checking balances every 30 seconds...</span>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <span class="stat-label">Total Wallets</span>
+                    <span class="stat-value" id="totalWallets">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Total BEP20 USDT</span>
+                    <span class="stat-value" id="totalBEP20">0.00</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Total TRC20 USDT</span>
+                    <span class="stat-value" id="totalTRC20">0.00</span>
                 </div>
             </div>
-        </div>
 
-        <div class="actions">
-            <button onclick="checkAllBalances()" class="btn-primary">🔍 Check All Balances</button>
-            <button onclick="clearAll()" class="btn-danger">🗑️ Clear All</button>
-            <button onclick="exportAddresses()" class="btn-secondary">💾 Export Addresses</button>
-        </div>
-
-        <div class="stats">
-            <div class="stat-card">
-                <span class="stat-label">Total Wallets</span>
-                <span class="stat-value" id="totalWallets">0</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-label">Total BEP20 USDT</span>
-                <span class="stat-value" id="totalBEP20">0.00</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-label">Total TRC20 USDT</span>
-                <span class="stat-value" id="totalTRC20">0.00</span>
+            <div class="table-container">
+                <table id="walletTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Wallet Address</th>
+                            <th>BEP20 USDT</th>
+                            <th>TRC20 USDT</th>
+                            <th>Total USDT</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="walletTableBody">
+                        <!-- Wallets will be added here -->
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <div class="table-container">
-            <table id="walletTable">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Wallet Address</th>
-                        <th>BEP20 USDT</th>
-                        <th>TRC20 USDT</th>
-                        <th>Total USDT</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="walletTableBody">
-                    <!-- Wallets will be added here -->
-                </tbody>
-            </table>
+        <!-- Live Monitor Tab -->
+        <div id="monitorTab" class="tab-content">
+            <div class="input-section">
+                <div class="input-group">
+                    <h2>Add Wallet to Monitor</h2>
+                    <div class="single-address">
+                        <input type="text" id="monitorAddress" placeholder="Enter wallet address" autocomplete="off">
+                        <select id="monitorNetwork" style="padding: 12px; border: 2px solid var(--border-color); border-radius: 8px;">
+                            <option value="BEP20">BEP20 (BSC)</option>
+                            <option value="TRC20">TRC20 (Tron)</option>
+                        </select>
+                        <button onclick="addMonitorWallet()">➕ Add to Monitor</button>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <h2>Server Status</h2>
+                    <div id="serverStatus" style="padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 10px; margin-bottom: 15px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div class="status-indicator" id="statusIndicator">●</div>
+                            <span id="statusText">Checking server...</span>
+                        </div>
+                        <div id="statusDetails" style="margin-top: 10px; font-size: 14px; color: #666;"></div>
+                    </div>
+                    <button onclick="checkServerStatus()" style="width: 100%;">🔄 Refresh Status</button>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button onclick="loadMonitoredWallets()" class="btn-primary">🔄 Refresh List</button>
+                <button onclick="loadRecentTransactions()" class="btn-secondary">📋 View Transactions</button>
+            </div>
+
+            <div class="table-container" style="margin-bottom: 30px;">
+                <h3 style="margin-bottom: 15px; color: #333;">Monitored Wallets</h3>
+                <table id="monitoredTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Wallet Address</th>
+                            <th>Network</th>
+                            <th>Added</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="monitoredTableBody">
+                        <tr><td colspan="5" style="text-align: center; padding: 40px; color: #999;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-container">
+                <h3 style="margin-bottom: 15px; color: #333;">Recent Transactions</h3>
+                <table id="transactionsTable">
+                    <thead>
+                        <tr>
+                            <th>Wallet</th>
+                            <th>Network</th>
+                            <th>Direction</th>
+                            <th>Amount</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsTableBody">
+                        <tr><td colspan="5" style="text-align: center; padding: 40px; color: #999;">No transactions yet</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div id="loading" class="loading hidden">
             <div class="spinner"></div>
-            <p>Checking balances...</p>
+            <p>Processing...</p>
         </div>
     </div>
 
     <script src="script.js"></script>
+    <script>
+        // Server API URL - auto-detect or use localhost
+                // Frontend: https://walletecheck.vercel.app/
+                // Backend: https://walletecheckserver-production.up.railway.app
+                const SERVER_API_URL = window.location.origin.includes('localhost')
+                    ? 'http://localhost:3000'
+                    : window.location.origin.includes('vercel.app') || window.location.origin.includes('walletecheck')
+                    ? 'https://walletecheckserver-production.up.railway.app'
+                    : window.location.origin.includes('railway')
+                    ? window.location.origin
+                    : window.location.origin;
+
+        // Tab switching
+        function switchTab(tab, buttonElement) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            
+            // Show selected tab
+            document.getElementById(tab + 'Tab').classList.add('active');
+            
+            // Activate clicked button
+            if (buttonElement) {
+                buttonElement.classList.add('active');
+            }
+            
+            // Load data for monitor tab
+            if (tab === 'monitor') {
+                checkServerStatus();
+                loadMonitoredWallets();
+                loadRecentTransactions();
+            }
+        }
+
+        // Server Status
+        async function checkServerStatus() {
+            const statusText = document.getElementById('statusText');
+            const statusDetails = document.getElementById('statusDetails');
+            const statusIndicator = document.getElementById('statusIndicator');
+            
+            try {
+                const response = await fetch(`${SERVER_API_URL}/api/health`);
+                const data = await response.json();
+                
+                statusIndicator.textContent = '🟢';
+                statusIndicator.style.color = '#10b981';
+                statusText.textContent = 'Server Online';
+                statusDetails.innerHTML = `
+                    <strong>Wallets Monitored:</strong> ${data.wallets}<br>
+                    <strong>Uptime:</strong> ${Math.floor(data.uptime / 60)} minutes
+                `;
+            } catch (error) {
+                statusIndicator.textContent = '🔴';
+                statusIndicator.style.color = '#ef4444';
+                statusText.textContent = 'Server Offline';
+                statusDetails.innerHTML = `
+                    <span style="color: #ef4444;">Server is not running. Please start the server first.</span><br>
+                    <small>Run: <code>cd server && npm start</code></small>
+                `;
+            }
+        }
+
+        // Add wallet to monitor
+        async function addMonitorWallet() {
+            const address = document.getElementById('monitorAddress').value.trim();
+            const network = document.getElementById('monitorNetwork').value;
+
+            if (!address) {
+                alert('Please enter a wallet address');
+                return;
+            }
+
+            const loading = document.getElementById('loading');
+            loading.classList.remove('hidden');
+
+            try {
+                const response = await fetch(`${SERVER_API_URL}/api/wallets`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ address, network })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ Wallet added to monitor!');
+                    document.getElementById('monitorAddress').value = '';
+                    loadMonitoredWallets();
+                    checkServerStatus();
+                } else {
+                    alert('❌ Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+            } finally {
+                loading.classList.add('hidden');
+            }
+        }
+
+        // Load monitored wallets
+        async function loadMonitoredWallets() {
+            try {
+                const response = await fetch(`${SERVER_API_URL}/api/wallets`);
+                const wallets = await response.json();
+
+                const tbody = document.getElementById('monitoredTableBody');
+                tbody.innerHTML = '';
+
+                if (wallets.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: #999;">No wallets being monitored yet</td></tr>';
+                    return;
+                }
+
+                wallets.forEach((wallet, index) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td class="wallet-address">${wallet.address}</td>
+                        <td><span style="padding: 4px 8px; background: ${wallet.network === 'BEP20' ? '#f0b90b' : '#ff0018'}; color: white; border-radius: 5px; font-size: 12px; font-weight: 600;">${wallet.network}</span></td>
+                        <td>${new Date(wallet.created_at).toLocaleString()}</td>
+                        <td><button class="delete-btn" onclick="deleteMonitorWallet('${wallet.address}')">🗑️ Delete</button></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                document.getElementById('monitoredTableBody').innerHTML = 
+                    '<tr><td colspan="5" style="text-align: center; color: #ef4444;">Error loading wallets. Is server running?</td></tr>';
+            }
+        }
+
+        // Delete monitored wallet
+        async function deleteMonitorWallet(address) {
+            if (!confirm(`Remove ${address} from monitoring?`)) return;
+
+            try {
+                const response = await fetch(`${SERVER_API_URL}/api/wallets/${address}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    alert('✅ Wallet removed');
+                    loadMonitoredWallets();
+                    checkServerStatus();
+                } else {
+                    alert('❌ Error removing wallet');
+                }
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+            }
+        }
+
+        // Load recent transactions
+        async function loadRecentTransactions() {
+            try {
+                const response = await fetch(`${SERVER_API_URL}/api/transactions?limit=20`);
+                const transactions = await response.json();
+
+                const tbody = document.getElementById('transactionsTableBody');
+                tbody.innerHTML = '';
+
+                if (transactions.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: #999;">No transactions detected yet</td></tr>';
+                    return;
+                }
+
+                transactions.forEach(tx => {
+                    const row = document.createElement('tr');
+                    const emoji = tx.direction === 'RECEIVED' ? '💰' : '📤';
+                    const networkBadge = tx.network === 'BEP20' ? 
+                        `<span style="padding: 2px 6px; background: #f0b90b; color: white; border-radius: 3px; font-size: 11px;">BEP20</span>` :
+                        `<span style="padding: 2px 6px; background: #ff0018; color: white; border-radius: 3px; font-size: 11px;">TRC20</span>`;
+                    
+                    row.innerHTML = `
+                        <td class="wallet-address">${tx.wallet_address.substring(0, 15)}...</td>
+                        <td>${networkBadge}</td>
+                        <td><strong>${emoji} ${tx.direction}</strong></td>
+                        <td class="balance">${parseFloat(tx.amount).toFixed(2)} USDT</td>
+                        <td>${new Date(tx.timestamp).toLocaleString()}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                document.getElementById('transactionsTableBody').innerHTML = 
+                    '<tr><td colspan="5" style="text-align: center; color: #ef4444;">Error loading transactions</td></tr>';
+            }
+        }
+
+        // Auto-refresh monitor tab every 30 seconds
+        setInterval(() => {
+            if (document.getElementById('monitorTab').classList.contains('active')) {
+                loadMonitoredWallets();
+                loadRecentTransactions();
+                checkServerStatus();
+            }
+        }, 30000);
+    </script>
 </body>
 </html>

@@ -1,0 +1,5 @@
+Railway Production URL:
+https://walletecheckserver-production.up.railway.app
+
+This URL is automatically detected by the application.
+No manual configuration needed - the app will use this URL when accessed from Railway.

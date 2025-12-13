@@ -9,8 +9,20 @@ const TRON_API = 'https://api.trongrid.io';
 // Storage key
 const STORAGE_KEY = 'usdt_wallet_addresses';
 
+// Server API URL - auto-detect
+// Frontend: https://walletecheck.vercel.app/
+// Backend: https://walletecheckserver-production.up.railway.app
+const SERVER_API_URL = window.location.origin.includes('localhost') 
+    ? 'http://localhost:3000' 
+    : window.location.origin.includes('vercel.app') || window.location.origin.includes('walletecheck')
+    ? 'https://walletecheckserver-production.up.railway.app'
+    : window.location.origin.includes('railway')
+    ? window.location.origin
+    : window.location.origin;
+
 // Initialize
 let wallets = [];
+let balanceCheckInterval = null;
 
 // Clean up invalid addresses from wallet list
 function cleanupInvalidAddresses() {
@@ -29,15 +41,31 @@ function cleanupInvalidAddresses() {
 }
 
 // Load wallets from localStorage on page load
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     loadWallets();
     // Clean up any invalid addresses that might have been added before
     const removed = cleanupInvalidAddresses();
     if (removed > 0) {
         console.log(`Cleaned up ${removed} invalid address(es) on page load`);
     }
+    
     renderTable();
     updateStats();
+    
+    // Sync with server and add to monitoring (in background, don't wait)
+    syncWalletsWithServer().then(() => {
+        console.log('✅ Wallets synced with server');
+    });
+    
+    // Start automatic balance checking if we have wallets
+    // Wait a bit for DOM to be ready
+    setTimeout(() => {
+        if (wallets.length > 0) {
+            startAutoBalanceCheck();
+        } else {
+            updateAutoCheckStatus();
+        }
+    }, 500);
 });
 
 // Load wallets from localStorage
@@ -54,7 +82,7 @@ function saveWallets() {
 }
 
 // Add single wallet address
-function addSingleAddress() {
+async function addSingleAddress() {
     const input = document.getElementById('walletAddress');
     const address = input.value.trim();
     
@@ -77,7 +105,10 @@ function addSingleAddress() {
         return;
     }
 
-    // Add wallet
+    // Determine network
+    const network = address.startsWith('0x') ? 'BEP20' : 'TRC20';
+
+    // Add wallet locally
     wallets.push({
         address: address,
         bep20Balance: null,
@@ -89,6 +120,14 @@ function addSingleAddress() {
     input.value = '';
     renderTable();
     updateStats();
+
+    // Automatically add to server monitoring
+    await addToServerMonitoring(address, network);
+    
+    // Start auto-check if not already running
+    if (!balanceCheckInterval && autoCheckEnabled) {
+        startAutoBalanceCheck();
+    }
 }
 
 // Validate wallet address format
@@ -123,7 +162,7 @@ function uploadBulkAddresses() {
     }
 
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
         const content = e.target.result;
         const lines = content.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         
@@ -203,6 +242,21 @@ function uploadBulkAddresses() {
         fileInput.value = '';
         
         alert(`Added ${added} valid wallet addresses. ${skipped} lines were skipped (headers, duplicates, or invalid addresses).`);
+        
+        // Automatically add all new addresses to server monitoring
+        if (added > 0) {
+            const newWallets = wallets.slice(-added); // Get the newly added wallets
+            for (const wallet of newWallets) {
+                const network = wallet.address.startsWith('0x') ? 'BEP20' : 'TRC20';
+                await addToServerMonitoring(wallet.address, network);
+                await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+            }
+            
+            // Start auto-check if not already running
+            if (!balanceCheckInterval && autoCheckEnabled) {
+                startAutoBalanceCheck();
+            }
+        }
     };
 
     reader.readAsText(file);
@@ -710,14 +764,18 @@ async function checkTRC20BalanceRPC(address) {
 }
 
 // Check all balances
-async function checkAllBalances() {
+async function checkAllBalances(showLoading = true) {
     if (wallets.length === 0) {
-        alert('No wallets to check. Please add wallet addresses first.');
+        if (showLoading) {
+            alert('No wallets to check. Please add wallet addresses first.');
+        }
         return;
     }
 
     const loading = document.getElementById('loading');
-    loading.classList.remove('hidden');
+    if (showLoading) {
+        loading.classList.remove('hidden');
+    }
 
     try {
         for (let i = 0; i < wallets.length; i++) {
@@ -762,12 +820,19 @@ async function checkAllBalances() {
         }
         
         saveWallets();
-        alert('All balances checked successfully!');
+        // Don't show alert for auto-checks, only for manual checks
+        if (showLoading) {
+            alert('All balances checked successfully!');
+        }
     } catch (error) {
         console.error('Error checking balances:', error);
-        alert('Error checking balances. Please try again.');
+        if (showLoading) {
+            alert('Error checking balances. Please try again.');
+        }
     } finally {
-        loading.classList.add('hidden');
+        if (showLoading) {
+            loading.classList.add('hidden');
+        }
     }
 }
 
@@ -812,12 +877,18 @@ function renderTable() {
 }
 
 // Delete wallet
-function deleteWallet(index) {
+async function deleteWallet(index) {
     if (confirm('Are you sure you want to delete this wallet?')) {
+        const wallet = wallets[index];
+        const address = wallet.address;
+        
         wallets.splice(index, 1);
         saveWallets();
         renderTable();
         updateStats();
+        
+        // Remove from server monitoring
+        await removeFromServerMonitoring(address);
     }
 }
 
@@ -833,12 +904,20 @@ function updateStats() {
 }
 
 // Clear all wallets
-function clearAll() {
+async function clearAll() {
     if (confirm('Are you sure you want to delete all wallets? This cannot be undone.')) {
+        // Remove all from server monitoring
+        for (const wallet of wallets) {
+            await removeFromServerMonitoring(wallet.address);
+        }
+        
         wallets = [];
         saveWallets();
         renderTable();
         updateStats();
+        
+        // Stop auto-checking
+        stopAutoBalanceCheck();
     }
 }
 
@@ -857,6 +936,138 @@ function exportAddresses() {
     a.download = 'wallet_addresses.txt';
     a.click();
     URL.revokeObjectURL(url);
+}
+
+// ==================== SERVER INTEGRATION FUNCTIONS ====================
+
+// Add wallet to server monitoring
+async function addToServerMonitoring(address, network) {
+    try {
+        const response = await fetch(`${SERVER_API_URL}/api/wallets`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address, network })
+        });
+
+        if (response.ok) {
+            console.log(`✅ Added ${address} to server monitoring`);
+            // Server will send Telegram notification automatically
+        } else {
+            const data = await response.json();
+            if (data.error && !data.error.includes('already exists')) {
+                console.log(`⚠️  Could not add to monitoring: ${data.error}`);
+            }
+        }
+    } catch (error) {
+        // Server might not be running, that's okay
+        console.log('ℹ️  Server not available, wallet saved locally only');
+    }
+}
+
+// Remove wallet from server monitoring
+async function removeFromServerMonitoring(address) {
+    try {
+        const response = await fetch(`${SERVER_API_URL}/api/wallets/${address}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            console.log(`✅ Removed ${address} from server monitoring`);
+            // Server will send Telegram notification automatically
+        }
+    } catch (error) {
+        console.log('ℹ️  Server not available');
+    }
+}
+
+// Sync all wallets with server
+async function syncWalletsWithServer() {
+    if (wallets.length === 0) return;
+
+    console.log('🔄 Syncing wallets with server...');
+    let synced = 0;
+    let failed = 0;
+
+    for (const wallet of wallets) {
+        const network = wallet.address.startsWith('0x') ? 'BEP20' : 'TRC20';
+        try {
+            await addToServerMonitoring(wallet.address, network);
+            synced++;
+            // Small delay to avoid overwhelming server
+            await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+            failed++;
+        }
+    }
+
+    if (synced > 0) {
+        console.log(`✅ Synced ${synced} wallets with server`);
+    }
+}
+
+// Start automatic balance checking
+function startAutoBalanceCheck() {
+    // Stop any existing interval
+    if (balanceCheckInterval) {
+        clearInterval(balanceCheckInterval);
+    }
+    
+    // Check balances immediately if we have wallets (without loading spinner)
+    if (wallets.length > 0) {
+        checkAllBalances(false);
+    }
+    
+    // Then check every 30 seconds
+    balanceCheckInterval = setInterval(() => {
+        if (wallets.length > 0 && autoCheckEnabled) {
+            console.log('🔄 Auto-checking balances...');
+            checkAllBalances(false); // Don't show loading spinner for auto-checks
+        }
+    }, 30000); // Every 30 seconds
+    
+    updateAutoCheckStatus();
+}
+
+// Stop automatic balance checking
+function stopAutoBalanceCheck() {
+    if (balanceCheckInterval) {
+        clearInterval(balanceCheckInterval);
+        balanceCheckInterval = null;
+    }
+    updateAutoCheckStatus();
+}
+
+// Toggle auto-check
+let autoCheckEnabled = true;
+
+function toggleAutoCheck() {
+    autoCheckEnabled = !autoCheckEnabled;
+    
+    if (autoCheckEnabled) {
+        startAutoBalanceCheck();
+    } else {
+        stopAutoBalanceCheck();
+    }
+    updateAutoCheckStatus();
+}
+
+function updateAutoCheckStatus() {
+    const statusEl = document.getElementById('autoCheckStatus');
+    const btnEl = document.getElementById('autoCheckBtn');
+    
+    if (statusEl && btnEl) {
+        if (autoCheckEnabled && balanceCheckInterval) {
+            statusEl.textContent = '🔄 Auto-checking balances every 30 seconds...';
+            btnEl.textContent = '⏸️ Pause Auto-Check';
+            btnEl.classList.remove('btn-danger');
+            btnEl.classList.add('btn-secondary');
+        } else {
+            statusEl.textContent = '⏸️ Auto-check paused. Click "Check Now" or resume auto-check.';
+            btnEl.textContent = '▶️ Resume Auto-Check';
+            btnEl.classList.remove('btn-secondary');
+            btnEl.classList.add('btn-danger');
+        }
+    }
 }
 
 // Debug function - test TRC20 balance for a single address

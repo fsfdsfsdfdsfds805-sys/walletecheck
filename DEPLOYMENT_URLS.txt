@@ -1,0 +1,13 @@
+DEPLOYMENT URLS
+================
+
+Frontend (Vercel):
+https://walletecheck.vercel.app/
+
+Backend (Railway):
+https://walletecheckserver-production.up.railway.app
+
+Configuration:
+- Frontend automatically connects to Railway backend when accessed from Vercel
+- CORS is configured to allow Vercel → Railway communication
+- No manual configuration needed
