@@ -127,7 +127,7 @@
                             <th>Wallet Address</th>
                             <th>Network</th>
                             <th>Added</th>
-                            <th>Action</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="monitoredTableBody">
@@ -282,13 +282,44 @@
                         <td class="wallet-address">${wallet.address}</td>
                         <td><span style="padding: 4px 8px; background: ${wallet.network === 'BEP20' ? '#f0b90b' : '#ff0018'}; color: white; border-radius: 5px; font-size: 12px; font-weight: 600;">${wallet.network}</span></td>
                         <td>${new Date(wallet.created_at).toLocaleString()}</td>
-                        <td><button class="delete-btn" onclick="deleteMonitorWallet('${wallet.address}')">🗑️ Delete</button></td>
+                        <td>
+                            <button class="btn-secondary" onclick="testWallet('${wallet.address}')" style="margin-right: 5px; padding: 5px 10px; font-size: 12px;">🧪 Test Now</button>
+                            <button class="delete-btn" onclick="deleteMonitorWallet('${wallet.address}')">🗑️ Delete</button>
+                        </td>
                     `;
                     tbody.appendChild(row);
                 });
             } catch (error) {
                 document.getElementById('monitoredTableBody').innerHTML = 
                     '<tr><td colspan="5" style="text-align: center; color: #ef4444;">Error loading wallets. Is server running?</td></tr>';
+            }
+        }
+
+        // Test wallet - manually trigger check
+        async function testWallet(address) {
+            const originalText = event.target.textContent;
+            event.target.textContent = '⏳ Checking...';
+            event.target.disabled = true;
+            
+            try {
+                const response = await fetch(`${SERVER_API_URL}/api/wallets/${address}/check`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`✅ Check completed!\n\nAddress: ${address}\nNetwork: ${data.network}\n\nCheck Railway logs for details. If transactions were found, you should receive a Telegram notification.`);
+                    // Refresh transactions list
+                    loadRecentTransactions();
+                } else {
+                    alert(`❌ Error: ${data.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                alert(`❌ Failed to test wallet: ${error.message}`);
+            } finally {
+                event.target.textContent = originalText;
+                event.target.disabled = false;
             }
         }
 
