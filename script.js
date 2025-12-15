@@ -849,6 +849,7 @@ function renderTable() {
     wallets.forEach((wallet, index) => {
         const row = document.createElement('tr');
         
+        // Prepare display values
         const bep20Balance = wallet.bep20Balance !== null 
             ? wallet.bep20Balance.toFixed(2) 
             : '-';
@@ -861,9 +862,23 @@ function renderTable() {
             ? totalBalance.toFixed(2)
             : '-';
 
+        const safeAddress = wallet.address.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
         row.innerHTML = `
             <td>${index + 1}</td>
-            <td class="wallet-address">${wallet.address}</td>
+            <td>
+                <div class="wallet-address-wrapper">
+                    <span class="wallet-address">${wallet.address}</span>
+                    <button 
+                        class="copy-btn" 
+                        type="button"
+                        onclick="copyToClipboard('${safeAddress}', this)"
+                        title="Copy address"
+                    >
+                        📋
+                    </button>
+                </div>
+            </td>
             <td class="balance ${wallet.bep20Balance === 0 || wallet.bep20Balance === null ? 'zero' : ''}">${bep20Balance}</td>
             <td class="balance ${wallet.trc20Balance === 0 || wallet.trc20Balance === null ? 'zero' : ''}">${trc20Balance}</td>
             <td class="balance ${totalBalance === 0 ? 'zero' : ''}">${totalDisplay}</td>
@@ -936,6 +951,56 @@ function exportAddresses() {
     a.download = 'wallet_addresses.txt';
     a.click();
     URL.revokeObjectURL(url);
+}
+
+// Core clipboard helper (returns Promise)
+function copyTextCore(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text);
+    }
+
+    return new Promise((resolve, reject) => {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.top = '-1000px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+
+        try {
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textarea);
+            if (successful) {
+                resolve();
+            } else {
+                reject(new Error('execCommand failed'));
+            }
+        } catch (err) {
+            document.body.removeChild(textarea);
+            reject(err);
+        }
+    });
+}
+
+// Copy a single wallet address (button-level feedback)
+function copyToClipboard(text, buttonEl) {
+    if (!text) return;
+
+    copyTextCore(text)
+        .then(() => {
+            if (!buttonEl) return;
+            const originalText = buttonEl.textContent;
+            buttonEl.textContent = '✅';
+            buttonEl.classList.add('copied');
+            setTimeout(() => {
+                buttonEl.textContent = '📋';
+                buttonEl.classList.remove('copied');
+            }, 1200);
+        })
+        .catch(() => {
+            alert('Could not copy address. Please try again.');
+        });
 }
 
 // ==================== SERVER INTEGRATION FUNCTIONS ====================
