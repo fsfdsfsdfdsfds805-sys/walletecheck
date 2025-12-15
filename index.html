@@ -206,6 +206,23 @@
         // Make switchTab available immediately (before DOMContentLoaded)
         // This ensures onclick handlers can access it
 
+        // Time formatting helper (IST / India time)
+        function formatIST(dateInput) {
+            const d = typeof dateInput === 'string' || typeof dateInput === 'number'
+                ? new Date(dateInput)
+                : dateInput;
+            
+            return d.toLocaleString('en-IN', {
+                timeZone: 'Asia/Kolkata',
+                year: 'numeric',
+                month: 'short',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
         // Server Status
         async function checkServerStatus() {
             const statusText = document.getElementById('statusText');
@@ -291,7 +308,7 @@
                         <td>${index + 1}</td>
                         <td class="wallet-address">${wallet.address}</td>
                         <td><span style="padding: 4px 8px; background: ${wallet.network === 'BEP20' ? '#f0b90b' : '#ff0018'}; color: white; border-radius: 5px; font-size: 12px; font-weight: 600;">${wallet.network}</span></td>
-                        <td>${new Date(wallet.created_at).toLocaleString()}</td>
+                                            <td>${formatIST(wallet.created_at)}</td>
                         <td>
                             <button class="btn-secondary" onclick="testWallet('${wallet.address}')" style="margin-right: 5px; padding: 5px 10px; font-size: 12px;">🧪 Test Now</button>
                             <button class="delete-btn" onclick="deleteMonitorWallet('${wallet.address}')">🗑️ Delete</button>
@@ -380,7 +397,7 @@
                         <td>${networkBadge}</td>
                         <td><strong>${emoji} ${tx.direction}</strong></td>
                         <td class="balance">${parseFloat(tx.amount).toFixed(2)} USDT</td>
-                        <td>${new Date(tx.timestamp).toLocaleString()}</td>
+                        <td>${formatIST(tx.timestamp)}</td>
                     `;
                     tbody.appendChild(row);
                 });
