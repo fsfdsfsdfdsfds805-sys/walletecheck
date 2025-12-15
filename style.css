@@ -390,6 +390,35 @@ tbody tr:last-child td {
     display: inline-block;
 }
 
+.wallet-address-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.copy-btn {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    background: linear-gradient(135deg, #ecf0f1 0%, #dfe6e9 100%);
+    color: #2d3436;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+}
+
+.copy-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+    background: linear-gradient(135deg, #dfe6e9 0%, #b2bec3 100%);
+}
+
+.copy-btn.copied {
+    background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+    color: #fff;
+}
+
 .balance {
     font-weight: 700;
     color: #10b981;
